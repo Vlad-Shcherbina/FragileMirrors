@@ -52,44 +52,6 @@ def smooth(xs, ys, k):
 
 
 if __name__ == '__main__':
-    random.seed(432)
-
-    n = 100
-
-    xs = []
-    ys = []
-    zs = []
-    ts = []
-    rs = []
-    qs = []
-    for i in range(5):
-        board = random_board(n)
-        for step, (_, board) in enumerate(greedy(n, board)):
-            paths = [trace_path(n, board, enter) for enter in iter_enters(n)]
-
-            x = 1 - 1.0 * len(board) / n**2
-            y = 1.0 * max(map(len, paths)) / n
-            z = (1.0 + step) / n
-            xs.append(x)
-            ys.append(y)
-            zs.append(z)
-
-            rows = set()
-            columns = set()
-            for i, j in board:
-                rows.add(i)
-                columns.add(j)
-            ts.append(len(interacting_pairs(n, board)))
-            rs.append(len(rows) + len(columns))
-        qs.append((step + 1.0) / n)
-
-
-    SMOOTH = 20
-
-    axs, ays = smooth(xs, ys, SMOOTH)
-    ys = [1.0 / y for y in ys]
-    ays = [1.0 / y for y in ays]
-
     fig = pylab.figure()
 
     ax1 = fig.add_subplot(221)
@@ -97,22 +59,61 @@ if __name__ == '__main__':
     ax3 = fig.add_subplot(223)
     ax4 = fig.add_subplot(224)
 
-    ax1.set_ylim([0, 10])
+    for algo in greedy, greedy_depth_two:
+        random.seed(432)
 
-    ax1.plot(xs, ys, '.')
-    ax1.plot(axs, ays, 'k-')
+        n = 80
 
-    axs, azs = smooth(xs, zs, SMOOTH)
+        xs = []
+        ys = []
+        zs = []
+        ts = []
+        rs = []
+        qs = []
+        for i in range(15):
+            board = random_board(n)
+            for step, (_, board) in enumerate(algo(n, board)):
+                paths = [trace_path(n, board, enter) for enter in iter_enters(n)]
 
-    ax2.plot(xs, zs, '.')
-    ax2.plot(axs, azs, 'k-')
+                x = 1 - 1.0 * len(board) / n**2
+                y = 1.0 * max(map(len, paths)) / n
+                z = (1.0 + step) / n
+                xs.append(x)
+                ys.append(y)
+                zs.append(z)
 
-    ax2.plot([1.0] * len(qs), qs, 'rd')
+                rows = set()
+                columns = set()
+                for i, j in board:
+                    rows.add(i)
+                    columns.add(j)
+                ts.append(len(interacting_pairs(n, board)))
+                rs.append(len(rows) + len(columns))
+            qs.append((step + 1.0) / n)
 
-    axs, ats = smooth(xs, ts, SMOOTH)
-    ax3.plot(xs, ts, '.')
-    ax3.plot(axs, ats, 'k-')
 
-    ax4.plot(xs, rs, '.')
+        SMOOTH = 20
+
+        axs, ays = smooth(xs, ys, SMOOTH)
+        ys = [1.0 / y for y in ys]
+        ays = [1.0 / y for y in ays]
+
+        ax1.set_ylim([0, 10])
+
+        ax1.plot(xs, ys, '.')
+        ax1.plot(axs, ays, '-')
+
+        axs, azs = smooth(xs, zs, SMOOTH)
+
+        ax2.plot(xs, zs, '.')
+        ax2.plot(axs, azs, '-')
+
+        ax2.plot([1.0] * len(qs), qs, 'rd')
+
+        axs, ats = smooth(xs, ts, SMOOTH)
+        ax3.plot(xs, ts, '.')
+        ax3.plot(axs, ats, '-')
+
+        ax4.plot(xs, rs, '.')
 
     pylab.show()

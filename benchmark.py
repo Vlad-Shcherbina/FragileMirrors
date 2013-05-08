@@ -11,10 +11,10 @@ if __name__ == '__main__':
     cnt = 0
     total_score = 0
     total_time = 0
-    for n in range(50, 101, 5):
+    for n in range(50, 101, 2):
         board = random_board(n)
         start = time.clock()
-        score = 1.0 * n / len(list(greedy(n, board)))
+        score = 1.0 * n / len(list(greedy_depth_two(n, board)))
         t = time.clock() - start
         total_score += score
         total_time += t
