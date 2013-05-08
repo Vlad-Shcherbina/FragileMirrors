@@ -141,6 +141,58 @@ class SkipCache(object):
         return result
 
 
+class ComponentsCache(object):
+    def __init__(self, n, board):
+        assert len(board) == n*n
+        self.row_pop = [n] * n
+        self.col_pop = [n] * n
+
+    def break_mirrors(self, path):
+        for x, y in path:
+            self.row_pop[y] -= 1
+            self.col_pop[x] -= 1
+            assert self.row_pop[y] >= 0
+            assert self.col_pop[x] >= 0
+
+    def new_isolated(self, path, skip_cache):
+        path = set(path)
+
+        n = len(self.row_pop)
+
+        row_counts = {}
+        col_counts = {}
+        for x, y in path:
+            if y not in row_counts:
+                row_counts[y] = 1
+            else:
+                row_counts[y] += 1
+            if x not in col_counts:
+                col_counts[x] = 1
+            else:
+                col_counts[x] += 1
+
+        isolated = set()
+        for y, cnt in row_counts.items():
+            if self.row_pop[y] == cnt + 1:
+                pt = skip_cache.right[-1, y]
+                while pt in path:
+                    pt = skip_cache.right[pt]
+                assert 0 <= pt[0] < n, pt
+                if self.col_pop[pt[0]] == col_counts.get(pt[0], 0) + 1:
+                    isolated.add(pt)
+
+        for x, cnt in col_counts.items():
+            if self.col_pop[x] == cnt + 1:
+                pt = skip_cache.down[x, -1]
+                while pt in path:
+                    pt = skip_cache.down[pt]
+                assert 0 <= pt[1] < n, pt
+                if self.row_pop[pt[1]] == row_counts.get(pt[1], 0) + 1:
+                    isolated.add(pt)
+
+        return len(isolated)
+
+
 def break_mirrors(board, path):
     backup_data = {}
     for x, y in path:
@@ -176,11 +228,19 @@ def greedy(n, board):
 
 def greedy_depth_two(n, board):
     skip_cache = SkipCache(n, board)
+    components_cache = ComponentsCache(n, board)
 
     enters = list(iter_enters(n))
     while board:
         best_pair = None
-        best_len = -1
+        best_gain = -1
+
+        if len(board)*10 < n*n:
+            def new_iso(path):
+                return components_cache.new_isolated(path, skip_cache)
+        else:
+            def new_iso(path):
+                return 0
 
         passing = {}
         for enter in enters:
@@ -188,8 +248,9 @@ def greedy_depth_two(n, board):
             if len(path) == len(board):
                 yield enter, board
                 return
-            if 2*len(path) > best_len:
-                best_len = 2*len(path)
+            gain = len(path) / (1.0 + new_iso(path))
+            if gain > best_gain:
+                best_gain = gain
                 best_pair = (enter, None)
             for pt in path:
                 if pt not in passing:
@@ -204,17 +265,18 @@ def greedy_depth_two(n, board):
                 for p2 in ps:
                     pairs[p1].add(p2)
 
-        cutoff = 4 + (2-n*0.02)
+        cutoff = 2 + 0.3*(2-n*0.02)
 
         for e1, e2s in pairs.items():
             path1 = skip_cache.trace_path(n, board, e1)
-            if cutoff*len(path1) < best_len:
+            if cutoff*len(path1) < best_gain:
                 continue
             u1 = break_mirrors(board, path1)
             for e2 in e2s:
                 path2 = skip_cache.trace_path(n, board, e2)
-                if len(path1) + len(path2) > best_len:
-                    best_len = len(path1) + len(path2)
+                gain = (len(path1) + len(path2)) / (2.0 + new_iso(path1+path2))
+                if gain > best_gain:
+                    best_gain = gain
                     best_pair = e1, e2
             u1()
 
@@ -222,14 +284,17 @@ def greedy_depth_two(n, board):
 
         yield e1, board
         path1 = skip_cache.trace_path(n, board, e1)
+
         u1 = break_mirrors(board, path1)
         skip_cache.break_mirrors(path1)
+        components_cache.break_mirrors(path1)
 
         if e2 is not None:
             yield e2, board
             path2 = skip_cache.trace_path(n, board, e2)
             u2 = break_mirrors(board, path2)
             skip_cache.break_mirrors(path2)
+            components_cache.break_mirrors(path2)
 
 
 class FragileMirrors(object):
