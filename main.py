@@ -157,7 +157,6 @@ def greedy(n, board):
     skip_cache = SkipCache(n, board)
 
     enters = list(iter_enters(n))
-    num_steps = 0
     while board:
         best_enter = None
         best_path = None
@@ -174,7 +173,63 @@ def greedy(n, board):
         u = break_mirrors(board, best_path)
         skip_cache.break_mirrors(best_path)
 
-        num_steps += 1
+
+def greedy_depth_two(n, board):
+    skip_cache = SkipCache(n, board)
+
+    enters = list(iter_enters(n))
+    while board:
+        best_pair = None
+        best_len = -1
+
+        passing = {}
+        for enter in enters:
+            path = skip_cache.trace_path(n, board, enter)
+            if len(path) == len(board):
+                yield enter, board
+                return
+            if 2*len(path) > best_len:
+                best_len = 2*len(path)
+                best_pair = (enter, None)
+            for pt in path:
+                if pt not in passing:
+                    passing[pt] = []
+                passing[pt].append(enter)
+
+        pairs = {}
+        for ps in passing.values():
+            for p1 in ps:
+                if p1 not in pairs:
+                    pairs[p1] = set()
+                for p2 in ps:
+                    pairs[p1].add(p2)
+
+        cutoff = 4 + (2-n*0.02)
+
+        for e1, e2s in pairs.items():
+            path1 = skip_cache.trace_path(n, board, e1)
+            if cutoff*len(path1) < best_len:
+                continue
+            u1 = break_mirrors(board, path1)
+            for e2 in e2s:
+                path2 = skip_cache.trace_path(n, board, e2)
+                if len(path1) + len(path2) > best_len:
+                    best_len = len(path1) + len(path2)
+                    best_pair = e1, e2
+            u1()
+
+        e1, e2 = best_pair
+
+        yield e1, board
+        path1 = skip_cache.trace_path(n, board, e1)
+        u1 = break_mirrors(board, path1)
+        skip_cache.break_mirrors(path1)
+
+        if e2 is not None:
+            yield e2, board
+            path2 = skip_cache.trace_path(n, board, e2)
+            u2 = break_mirrors(board, path2)
+            skip_cache.break_mirrors(path2)
 
 
 class FragileMirrors(object):
@@ -187,7 +242,7 @@ class FragileMirrors(object):
                 board[j, i] = {'L': 0, 'R': 1}[c]
 
         result = []
-        for enter, _ in greedy(n, board):
+        for enter, _ in greedy_depth_two(n, board):
             result.append(enter[1])
             result.append(enter[0])
         return result
