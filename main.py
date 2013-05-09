@@ -226,12 +226,51 @@ def greedy(n, board):
         skip_cache.break_mirrors(best_path)
 
 
+def connected_components(board):
+    assert board
+
+    board = dict(board)
+
+    xs = set()
+    ys = set()
+    for x, y in board:
+        xs.add(x)
+        ys.add(y)
+
+    components = []
+
+    while xs:
+        visited = set()
+        x = next(iter(xs))
+        tasks = [x]
+        while tasks:
+            task = tasks.pop()
+            if task in visited:
+                continue
+            visited.add(task)
+            for x, y in board:
+                if task == x and y+1000 not in visited:
+                    tasks.append(y+1000)
+                elif task - 1000 == y and x not in visited:
+                    tasks.append(x)
+
+        new_component = {}
+        for (x, y), mirror in board.items():
+            if x in visited:
+                new_component[x, y] = mirror
+                if x in xs:
+                    xs.remove(x)
+        components.append(new_component)
+    return components
+
+
 def greedy_depth_two(n, board):
     skip_cache = SkipCache(n, board)
     components_cache = ComponentsCache(n, board)
 
     enters = list(iter_enters(n))
     while board:
+        print>>sys.stderr, sorted(map(len, connected_components(board)))
         best_pair = None
         best_gain = -1
 
