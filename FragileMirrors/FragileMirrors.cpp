@@ -102,8 +102,8 @@ ostream& operator<<(ostream &out, vector<T> v) {
     return out;
 }
 
-template<typename T>
-void trace_path(Point enter, T &output_iterator) {
+template<typename OutputIterator>
+OutputIterator trace_path(Point enter, OutputIterator output_iterator) {
     Point p = enter;
     assert(
         p->x() >= 0 && p->x() < n ||
@@ -116,28 +116,28 @@ void trace_path(Point enter, T &output_iterator) {
 
 right:
     do { p = p->right; } while (p->broken);
-    if (p->is_outside()) return;
+    if (p->is_outside()) return output_iterator;
     p->broken = true;
     *output_iterator++ = p;
     if (p->is_right) goto down;
     goto up;
 left:
     do { p = p->left; } while (p->broken);
-    if (p->is_outside()) return;
+    if (p->is_outside()) return output_iterator;
     p->broken = true;
     *output_iterator++ = p;
     if (p->is_right) goto up;
     goto down;
 down:
     do { p = p->down; } while (p->broken);
-    if (p->is_outside()) return;
+    if (p->is_outside()) return output_iterator;
     p->broken = true;
     *output_iterator++ = p;
     if (p->is_right) goto right;
     goto left;
 up:
     do { p = p->up; } while (p->broken);
-    if (p->is_outside()) return;
+    if (p->is_outside()) return output_iterator;
     p->broken = true;
     *output_iterator++ = p;
     if (p->is_right) goto left;
