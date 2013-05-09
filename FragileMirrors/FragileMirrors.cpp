@@ -10,10 +10,25 @@
 #include <set>
 #include <algorithm>
 
-using namespace std;
-
 struct CellInfo;
 typedef CellInfo *Point;
+
+#ifdef _WIN32
+#include <hash_map>
+#else
+#include <ext/hash_map>
+using __gnu_cxx::hash_map;
+namespace __gnu_cxx
+{
+    template<> struct hash<Point> {
+        size_t operator()(Point p) const {
+            return reinterpret_cast<size_t>(p);
+        }
+    };
+}
+#endif
+
+using namespace std;
 
 struct CellInfo {
     bool is_right;
@@ -223,15 +238,15 @@ vector<Point> greedy() {
     return vector<Point>(1, best_enter);
 }
 
-
 vector<Point> greedy_depth_two() {
     vector<Point> enters = all_enters();
 
     float best_gain = -1;
     vector<Point> best_solution;
 
-    map<Point, vector<Point> > passes;
-    map<Point, vector<Point> > interacts;
+    typedef hash_map<Point, vector<Point> > PtoPs;
+    PtoPs passes;
+    PtoPs interacts;
 
     for (int i = 0; i < enters.size(); i++) {
         Point enter = enters[i];
@@ -257,7 +272,7 @@ vector<Point> greedy_depth_two() {
 
     float fill = 1.0 * mirror_count() / (n*n);
 
-    for (map<Point, vector<Point> >::iterator i = interacts.begin(); i != interacts.end(); ++i) {
+    for (PtoPs::iterator i = interacts.begin(); i != interacts.end(); ++i) {
         Point e1 = i->first;
 
         vector<Point> &es = i->second;
@@ -359,6 +374,7 @@ public:
     }
 };
 
+#ifdef _WIN32
 int main(int argc, char* argv[])
 {
     int n;
@@ -380,4 +396,5 @@ int main(int argc, char* argv[])
 
     return 0;
 }
+#endif
 
