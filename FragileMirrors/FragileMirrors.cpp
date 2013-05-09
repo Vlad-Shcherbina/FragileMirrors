@@ -9,6 +9,7 @@
 #include <utility>
 #include <set>
 #include <algorithm>
+#include <fstream>
 
 struct CellInfo;
 typedef CellInfo *Point;
@@ -377,6 +378,12 @@ public:
 #ifdef _WIN32
 int main(int argc, char* argv[])
 {
+    //ifstream cin("..\\test_large.in");
+    if (cin.fail()) {
+        cout << "INPUT ERROR" << endl;
+        return 1;
+    }
+
     int n;
     vector<string> rows;
     cin >> n;
