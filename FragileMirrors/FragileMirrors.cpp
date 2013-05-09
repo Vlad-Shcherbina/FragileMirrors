@@ -109,7 +109,7 @@ ostream& operator<<(ostream &out, vector<T> v) {
     return out;
 }
 
-template<typename K, typename V>
+/*template<typename K, typename V>
 ostream& operator<<(ostream &out, const map<K, V> &m) {
     out << '{';
     for (map<K, V>::const_iterator i = m.begin(); i != m.end(); ++i) {
@@ -118,7 +118,7 @@ ostream& operator<<(ostream &out, const map<K, V> &m) {
     }
     out << '}';
     return out;
-}
+}*/
 
 template<typename OutputIterator>
 OutputIterator trace_path(Point enter, OutputIterator output_iterator) {
@@ -324,16 +324,19 @@ public:
         parse_board(rows);
 
         vector<int> solution;
+        int step = 0;
         while (mirror_count() > 0) {
             cerr << "mirror count = " << mirror_count() << endl;
             vector<Point> es = greedy_depth_two();
             for (int i = 0; i < es.size(); i++) {
                 Point e = es[i];
                 do_step(es[i]);
+                step++;
                 solution.push_back(e->y());
                 solution.push_back(e->x());
                 cerr << e << endl;
             }
+            cerr << "data point: (" << step << ", " << mirror_count() << ")" << endl;
         }
 
         cerr << "it took " << 1.0 * (clock() - start) / CLOCKS_PER_SEC << endl;
