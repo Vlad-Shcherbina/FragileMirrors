@@ -247,13 +247,15 @@ vector<Point> greedy_depth_two() {
         }
         undo_path(path);
 
-        int gain = path.size();
+        float gain = path.size();
         if (gain > best_gain) {
             best_gain = gain;
             best_solution.clear();
             best_solution.push_back(enter);
         }
     }
+
+    float fill = 1.0 * mirror_count() / (n*n);
 
     for (map<Point, vector<Point> >::iterator i = interacts.begin(); i != interacts.end(); ++i) {
         Point e1 = i->first;
@@ -266,13 +268,42 @@ vector<Point> greedy_depth_two() {
             Point e2 = es[j];
             vector<Point> path2;
             trace_path(e2, back_inserter(path2));
-            int gain = 0.5 * (path1.size() + path2.size());
+            float gain = 0.5 * (path1.size() + path2.size());
             if (gain > best_gain) {
                 best_gain = gain;
                 best_solution.clear();
                 best_solution.push_back(e1);
                 best_solution.push_back(e2);
             }
+
+            if (fill > 0.1 && gain < 0.5 * n) {
+                undo_path(path2);
+                continue;
+            }
+
+            set<Point> e3s;
+            for (int k = 0; k < path2.size(); k++) {
+                if (passes.count(path2[k]) == 0)
+                    continue;
+                vector<Point> &ps = passes[path2[k]];
+                for (int l = 0; l < ps.size(); l++)
+                    e3s.insert(ps[l]);
+            }
+            for (set<Point>::iterator k = e3s.begin(); k != e3s.end(); k++) {
+                Point e3 = *k;
+                vector<Point> path3;
+                trace_path(e3, back_inserter(path3));
+                float gain = 0.333333 * (path1.size() + path2.size() + path3.size());
+                if (gain > best_gain) {
+                    best_gain = gain;
+                    best_solution.clear();
+                    best_solution.push_back(e1);
+                    best_solution.push_back(e2);
+                    best_solution.push_back(e3);
+                }
+                undo_path(path3);
+            }
+
             undo_path(path2);
         }
         undo_path(path1);
