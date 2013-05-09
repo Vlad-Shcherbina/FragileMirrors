@@ -5,6 +5,10 @@
 #include <iterator>
 #include <string>
 #include <ctime>
+#include <map>
+#include <utility>
+#include <set>
+#include <algorithm>
 
 using namespace std;
 
@@ -87,7 +91,10 @@ void print_board(ostream &out) {
 }
 
 ostream& operator<<(ostream &out, Point p) {
-    out << '(' << p->x() << ", " << p->y() << ')';
+    if (p)
+        out << '(' << p->x() << ", " << p->y() << ')';
+    else
+        out << "NullPoint";
     return out;
 }
 
@@ -99,6 +106,17 @@ ostream& operator<<(ostream &out, vector<T> v) {
         out << v[i];
     }
     out << ']';
+    return out;
+}
+
+template<typename K, typename V>
+ostream& operator<<(ostream &out, const map<K, V> &m) {
+    out << '{';
+    for (map<K, V>::const_iterator i = m.begin(); i != m.end(); ++i) {
+        if (i != m.begin()) out << ", ";
+        out << i->first << ": " << i->second;
+    }
+    out << '}';
     return out;
 }
 
@@ -182,7 +200,7 @@ vector<Point> all_enters() {
     return result;
 }
 
-Point find_step() {
+vector<Point> greedy() {
     vector<Point> enters = all_enters();
 
     int best_len = -1;
@@ -202,8 +220,87 @@ Point find_step() {
         undo_path(path);
     }
     assert(best_len > 0);
-    return best_enter;
+    return vector<Point>(1, best_enter);
 }
+
+
+vector<Point> greedy_depth_two() {
+    vector<Point> enters = all_enters();
+
+    int best_len = -1;
+    pair<Point, Point> best_pair;
+
+    map<Point, int> path_lens;
+
+    map<Point, vector<Point> > passes;
+    map<Point, vector<Point> > interacts;
+
+    for (int i = 0; i < enters.size(); i++) {
+        Point enter = enters[i];
+        vector<Point> path;
+        trace_path(enter, back_inserter(path));
+        for (int j = 0; j < path.size(); j++) {
+            vector<Point> &ps = passes[path[j]];
+            for (int k = 0; k < ps.size(); k++) {
+                interacts[enter].push_back(ps[k]);
+                interacts[ps[k]].push_back(enter);
+            }
+            ps.push_back(enter);
+        }
+        path_lens[enter] = path.size();
+        undo_path(path);
+    }
+
+    for (map<Point, vector<Point> >::iterator i = interacts.begin(); i != interacts.end(); ++i) {
+        Point e1 = i->first;
+        if (path_lens[e1] == 0)
+            continue;
+
+        vector<Point> &es = i->second;
+        sort(es.begin(), es.end());
+
+        for (int j = 0; j < enters.size(); j++) {
+            Point e2 = enters[j];
+            if (e2 == e1)
+                continue;
+            if (binary_search(es.begin(), es.end(), e2))
+                continue;
+            int len = path_lens[e1] + path_lens[e2];
+            //int len = path_lens[e1] * 2;
+            if (len > best_len) {
+                best_len = len;
+                best_pair.first = e1;
+                best_pair.second = NULL;
+            }
+        }
+
+        vector<Point> path1;
+        trace_path(e1, back_inserter(path1));
+        for (int j = 0; j < es.size(); j++) {
+            Point e2 = es[j];
+            vector<Point> path2;
+            trace_path(e2, back_inserter(path2));
+            int len = path1.size() + path2.size();
+            if (len > best_len) {
+                best_len = len;
+                best_pair.first = e1;
+                best_pair.second = e2;
+            }
+            undo_path(path2);
+        }
+        undo_path(path1);
+    }
+
+    //cerr << "best solution:" << best_len << best_pair.first << best_pair.second << endl;
+    assert(best_len > 0);
+
+    vector<Point> result;
+    result.push_back(best_pair.first);
+    if (best_pair.second)
+        result.push_back(best_pair.second);
+    return result;
+}
+
 
 void do_step(Point enter) {
     vector<Point> path;
@@ -221,17 +318,25 @@ void do_step(Point enter) {
 class FragileMirrors {
 public:
     vector<int> destroy(vector<string> rows) {
+        clock_t start = clock();
+
         init_board();
         parse_board(rows);
 
         vector<int> solution;
         while (mirror_count() > 0) {
             cerr << "mirror count = " << mirror_count() << endl;
-            Point e = find_step();
-            do_step(e);
-            solution.push_back(e->y());
-            solution.push_back(e->x());
+            vector<Point> es = greedy_depth_two();
+            for (int i = 0; i < es.size(); i++) {
+                Point e = es[i];
+                do_step(es[i]);
+                solution.push_back(e->y());
+                solution.push_back(e->x());
+                cerr << e << endl;
+            }
         }
+
+        cerr << "it took " << 1.0 * (clock() - start) / CLOCKS_PER_SEC << endl;
 
         return solution;
     }
@@ -239,9 +344,6 @@ public:
 
 int main(int argc, char* argv[])
 {
-    clock_t start = clock();
-    init_board();
-
     int n;
     vector<string> rows;
     cin >> n;
@@ -253,7 +355,6 @@ int main(int argc, char* argv[])
     }
 
     vector<int> solution = FragileMirrors().destroy(rows);
-    cerr << "it took " << 1.0 * (clock() - start) / CLOCKS_PER_SEC << endl;
 
     cout << solution.size() << endl;
     for (int i = 0; i < solution.size(); i++)
