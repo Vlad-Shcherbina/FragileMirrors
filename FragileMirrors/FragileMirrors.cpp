@@ -150,39 +150,44 @@ OutputIterator trace_path(Point enter, OutputIterator output_iterator) {
 
 right:
     do { p = p->right; } while (p->broken);
-    if (p->is_outside()) return output_iterator;
+    if (p->x() >= n) return output_iterator;
     p->broken = true;
     *output_iterator++ = p;
     if (p->is_right) goto down;
     goto up;
 left:
     do { p = p->left; } while (p->broken);
-    if (p->is_outside()) return output_iterator;
+    if (p->x() < 0) return output_iterator;
     p->broken = true;
     *output_iterator++ = p;
     if (p->is_right) goto up;
     goto down;
 down:
     do { p = p->down; } while (p->broken);
-    if (p->is_outside()) return output_iterator;
+    if (p->y() >= n) return output_iterator;
     p->broken = true;
     *output_iterator++ = p;
     if (p->is_right) goto right;
     goto left;
 up:
     do { p = p->up; } while (p->broken);
-    if (p->is_outside()) return output_iterator;
+    if (p->y() < 0) return output_iterator;
     p->broken = true;
     *output_iterator++ = p;
     if (p->is_right) goto left;
     goto right;
 }
 
-void undo_path(const vector<Point> &path) {
-    for (int i = 0; i < path.size(); i++) {
-        assert(path[i]->broken);
-        path[i]->broken = false;
+template<typename Iterator>
+void undo_path(Iterator begin, Iterator end) {
+    for (Iterator i = begin; i != end; ++i) {
+        assert((*i)->broken);
+        (*i)->broken = false;
     }
+}
+
+void undo_path(const vector<Point> &path) {
+    undo_path(path.begin(), path.end());
 }
 
 void parse_board(vector<string> rows) {
@@ -307,9 +312,10 @@ vector<Point> greedy_depth_two() {
             }
             for (set<Point>::iterator k = e3s.begin(); k != e3s.end(); k++) {
                 Point e3 = *k;
-                vector<Point> path3;
-                trace_path(e3, back_inserter(path3));
-                float gain = 0.333333 * (path1.size() + path2.size() + path3.size());
+                Point path3[10000];
+                Point *path3_end = path3;
+                path3_end = trace_path(e3, path3_end);
+                float gain = 0.333333 * (path1.size() + path2.size() + (path3_end-path3));
                 if (gain > best_gain) {
                     best_gain = gain;
                     best_solution.clear();
@@ -317,7 +323,7 @@ vector<Point> greedy_depth_two() {
                     best_solution.push_back(e2);
                     best_solution.push_back(e3);
                 }
-                undo_path(path3);
+                undo_path(path3, path3_end);
             }
 
             undo_path(path2);
