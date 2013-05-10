@@ -238,6 +238,25 @@ struct Subset {
         }
         return result;
     }
+    vector<Point> all_enters() const {
+        set<int> xs;
+        for (int i = 0; i < ys.size(); i++) {
+            FOREACH_POINT_IN_ROW(ys[i], pt)
+                xs.insert(pt->x());
+            }
+            if (xs.size() == n) break;
+        }
+        vector<Point> result;
+        for (int i = 0; i < ys.size(); i++) {
+            result.push_back(from_coords(-1, ys[i]));
+            result.push_back(from_coords(n, ys[i]));
+        }
+        for (set<int>::iterator i = xs.begin(); i != xs.end(); ++i) {
+            result.push_back(from_coords(*i, -1));
+            result.push_back(from_coords(*i, n));
+        }
+        return result;
+    }
     vector<Subset> connected_components() const {
         int component_number = 0;
 
@@ -305,19 +324,8 @@ ostream& operator<<(ostream &out, const Subset &s) {
     return out;
 }
 
-vector<Point> all_enters() {
-    vector<Point> result;
-    for (int i = 0; i < n; i++) {
-        result.push_back(from_coords(-1, i));
-        result.push_back(from_coords(n, i));
-        result.push_back(from_coords(i, -1));
-        result.push_back(from_coords(i, n));
-    }
-    return result;
-}
-
-vector<Point> greedy() {
-    vector<Point> enters = all_enters();
+vector<Point> greedy(Subset subset) {
+    vector<Point> enters = subset.all_enters();
 
     int best_len = -1;
     Point best_enter;
@@ -339,8 +347,8 @@ vector<Point> greedy() {
     return vector<Point>(1, best_enter);
 }
 
-vector<Point> greedy_depth_two() {
-    vector<Point> enters = all_enters();
+vector<Point> greedy_depth_two(Subset subset) {
+    vector<Point> enters = subset.all_enters();
 
     float best_gain = -1;
     vector<Point> best_solution;
@@ -457,17 +465,18 @@ public:
         vector<int> solution;
         int step = 0;
         while (Subset::full().mirror_count() > 0) {
-            cerr << "mirror count = " << Subset::full().mirror_count() << endl;
+            Subset subset = Subset::full().clip();
+            cerr << "mirror count = " << subset.mirror_count() << endl;
             /*cerr << "*********" << endl;
-            cerr << Subset::full().clip();
+            cerr << subset;
             cerr << "has following components:" << endl;
-            vector<Subset> components = Subset::full().clip().connected_components();
+            vector<Subset> components = subset.connected_components();
             for (int i = 0; i < components.size(); i++) {
                 cerr << i << " ---" << endl;
                 cerr << components[i];
             }
             cerr << "----" << endl;*/
-            vector<Point> es = greedy_depth_two();
+            vector<Point> es = greedy_depth_two(subset);
             for (int i = 0; i < es.size(); i++) {
                 Point e = es[i];
                 do_step(es[i]);
