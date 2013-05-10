@@ -461,6 +461,36 @@ void do_step(Point enter) {
 }
 
 
+vector<Point> perfect_solve(Subset subset) {
+    int mc = subset.mirror_count();
+    assert(mc > 0);
+    vector<Point> enters = subset.all_enters();
+
+    vector<Point> best_solution(mc + 1);
+
+    for (int i = 0; i < enters.size(); i++) {
+        if (mc <= 2 && best_solution.size() == 1)
+            break;
+        vector<Point> path;
+        trace_path(enters[i], back_inserter(path));
+        vector<Point> solution;
+        solution.push_back(enters[i]);
+
+        vector<Subset> components = subset.clip().connected_components();
+        for (int j = 0; j < components.size(); j++) {
+            vector<Point> sub = perfect_solve(components[j]);
+            copy(sub.begin(), sub.end(), back_inserter(solution));
+        }
+
+        if (solution.size() < best_solution.size())
+            best_solution = solution;
+
+        undo_path(path);
+    }
+    assert(best_solution.size() <= mc);
+    return best_solution;
+}
+
 class FragileMirrors {
     vector<Point> solution;
 
@@ -470,7 +500,15 @@ class FragileMirrors {
         assert(mc > 0);
         cerr << "mirror count = " << mc << endl;
 
-        vector<Point> es = greedy_depth_two(subset);
+        vector<Point> es;
+        if (mc <= 4) {
+            cerr << subset;
+            es = perfect_solve(subset);
+            cerr << "perfect solution: " << es << endl;
+        }
+        else {
+            es = greedy_depth_two(subset);
+        }
         for (int i = 0; i < es.size(); i++) {
             Point e = es[i];
             do_step(es[i]);
