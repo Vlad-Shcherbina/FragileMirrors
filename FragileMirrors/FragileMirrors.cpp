@@ -206,6 +206,10 @@ void parse_board(vector<string> rows) {
 #define FOREACH_POINT_IN_ROW(y, pt) \
     for (Point pt = from_coords(-1, y)->right; pt->x() < n; pt = pt->right) { \
         if (pt->broken) continue;
+#define FOREACH_POINT_IN_COLUMN(x, pt) \
+    for (Point pt = from_coords(x, -1)->down; pt->y() < n; pt = pt->down) { \
+        if (pt->broken) continue;
+
 
 struct Subset {
     vector<int> ys;
@@ -233,6 +237,44 @@ struct Subset {
             }
         }
         return result;
+    }
+    vector<Subset> connected_components() const {
+        int component_number = 0;
+
+        int visited_rows[100] = {0};
+        int visited_columns[100] = {0};
+        for (int i = 0; i < ys.size(); i++) {
+            int y0 = ys[i];
+            if (visited_rows[y0]) continue;
+            component_number++;
+            vector<int> tasks;
+            tasks.push_back(y0);
+            while (!tasks.empty()) {
+                int task = tasks.back();
+                tasks.pop_back();
+                if (task < 1000) {
+                    FOREACH_POINT_IN_ROW(task, pt)
+                        if (visited_columns[pt->x()]) continue;
+                        visited_columns[pt->x()] = component_number;
+                        tasks.push_back(pt->x() + 1000);
+                    }
+                }
+                else {
+                    FOREACH_POINT_IN_COLUMN(task - 1000, pt)
+                        if (visited_rows[pt->y()]) continue;
+                        visited_rows[pt->y()] = component_number;
+                        tasks.push_back(pt->y());
+                    }
+                }
+            }
+        }
+
+        vector<Subset> components(component_number);
+        for (int i = 0; i < ys.size(); i++) {
+            int y = ys[i];
+            components[visited_rows[y]-1].ys.push_back(y);
+        }
+        return components;
     }
 };
 
@@ -416,7 +458,15 @@ public:
         int step = 0;
         while (Subset::full().mirror_count() > 0) {
             cerr << "mirror count = " << Subset::full().mirror_count() << endl;
-            //cerr << Subset::full().clip();
+            /*cerr << "*********" << endl;
+            cerr << Subset::full().clip();
+            cerr << "has following components:" << endl;
+            vector<Subset> components = Subset::full().clip().connected_components();
+            for (int i = 0; i < components.size(); i++) {
+                cerr << i << " ---" << endl;
+                cerr << components[i];
+            }
+            cerr << "----" << endl;*/
             vector<Point> es = greedy_depth_two();
             for (int i = 0; i < es.size(); i++) {
                 Point e = es[i];
