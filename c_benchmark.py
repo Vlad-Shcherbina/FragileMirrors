@@ -23,12 +23,17 @@ if __name__ == '__main__':
 
     xs = []
     ys = []
-    for i, result in enumerate(results):
-        print '{:3}% {}'.format(100*(i+1)/N, result)
-        sum_scores += result.score
-        sum_scores2 += result.score**2
-        xs.append(result.n)
-        ys.append(result.time)
+
+    with open('training_data.txt', 'w') as fout:
+        for i, result in enumerate(results):
+            print '{:3}% {}'.format(100*(i+1)/N, result)
+            for sub in result.subtasks:
+                print>>fout, repr(sub)
+            fout.flush()
+            sum_scores += result.score
+            sum_scores2 += result.score**2
+            xs.append(result.n)
+            ys.append(result.time)
 
     mean_score = sum_scores/N
     sigma_score = sqrt(1.0 / (N-1) / N * (sum_scores2 - N*mean_score**2))
