@@ -343,10 +343,25 @@ ostream& operator<<(ostream &out, const Subset &s) {
     return out;
 }
 
-vector<Point> greedy(Subset subset) {
+float evaluate(const Subset &s) {
+    vector<Subset> components = s.connected_components();
+    float result = 0;
+    for (int i = 0; i < components.size(); i++) {
+        Subset &component = components[i];
+        int mc = component.mirror_count();
+        if (mc <= 2)
+            result += 1;
+        else
+            result += (mc+1)/2 - mc%2*0.1;
+    }
+    return result;
+}
+
+template<typename Fn>
+vector<Point> greedy(Subset subset, Fn evaluate) {
     vector<Point> enters = subset.all_enters();
 
-    int best_len = -1;
+    float best_cost = 1e10;
     Point best_enter;
 
     for (int i = 0; i < enters.size(); i++) {
@@ -354,15 +369,15 @@ vector<Point> greedy(Subset subset) {
         vector<Point> path;
         trace_path(enter, back_inserter(path));
 
-        int len = path.size();
-        if (len > best_len) {
-            best_len = len;
+        float cost = 1 + evaluate(subset.clip());
+        if (cost < best_cost) {
+            best_cost = cost;
             best_enter = enter;
         }
 
         undo_path(path);
     }
-    assert(best_len > 0);
+    assert(best_cost < 1e10);
     return vector<Point>(1, best_enter);
 }
 
@@ -516,10 +531,14 @@ class FragileMirrors {
         int start_steps = solution.size();
 
         vector<Point> es;
-        if (mc <= 4) {
+        /*if (mc <= 4) {
             cerr << subset;
             es = perfect_solve(subset);
             cerr << "perfect solution: " << es << endl;
+        }
+        else */
+        if (mc <= 2*n) {
+            es = greedy(subset, evaluate);
         }
         else {
             es = greedy_depth_two(subset);
