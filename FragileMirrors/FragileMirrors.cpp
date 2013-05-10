@@ -201,12 +201,17 @@ void parse_board(vector<string> rows) {
         }
 }
 
+// Notice unbalanced bracket!
+#define FOREACH_POINT_IN_ROW(y, pt) \
+    for (Point pt = from_coords(-1, y)->right; pt->x() < n; pt = pt->right) { \
+        if (pt->broken) continue;
+
 int mirror_count() {
     int result = 0;
-    for (int i = 0; i < n; i++)
-        for (int j = 0; j < n; j++)
-            if (!from_coords(j, i)->broken)
-                result++;
+    for (int y = 0; y < n; y++)
+        FOREACH_POINT_IN_ROW(y, pt)
+            result++;
+        }
     return result;
 }
 
