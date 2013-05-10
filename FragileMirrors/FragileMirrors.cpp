@@ -295,6 +295,12 @@ struct Subset {
         }
         return components;
     }
+
+    struct SizeComparer {
+        bool operator()(const Subset &s1, const Subset &s2) {
+            return s1.mirror_count() < s2.mirror_count();
+        }
+    };
 };
 
 ostream& operator<<(ostream &out, const Subset &s) {
@@ -467,16 +473,17 @@ public:
         while (Subset::full().mirror_count() > 0) {
             Subset subset = Subset::full().clip();
             cerr << "mirror count = " << subset.mirror_count() << endl;
+            vector<Subset> components = subset.connected_components();
+            stable_sort(components.begin(), components.end(), Subset::SizeComparer());
             /*cerr << "*********" << endl;
             cerr << subset;
             cerr << "has following components:" << endl;
-            vector<Subset> components = subset.connected_components();
             for (int i = 0; i < components.size(); i++) {
                 cerr << i << " ---" << endl;
                 cerr << components[i];
             }
             cerr << "----" << endl;*/
-            vector<Point> es = greedy_depth_two(subset);
+            vector<Point> es = greedy_depth_two(components.front());
             for (int i = 0; i < es.size(); i++) {
                 Point e = es[i];
                 do_step(es[i]);
