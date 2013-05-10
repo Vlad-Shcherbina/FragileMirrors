@@ -10,6 +10,7 @@
 #include <set>
 #include <algorithm>
 #include <fstream>
+#include <iomanip>
 
 struct CellInfo;
 typedef CellInfo *Point;
@@ -206,13 +207,60 @@ void parse_board(vector<string> rows) {
     for (Point pt = from_coords(-1, y)->right; pt->x() < n; pt = pt->right) { \
         if (pt->broken) continue;
 
-int mirror_count() {
-    int result = 0;
-    for (int y = 0; y < n; y++)
-        FOREACH_POINT_IN_ROW(y, pt)
-            result++;
+struct Subset {
+    vector<int> ys;
+    static Subset full() {
+        Subset result;
+        for (int i = 0; i < n; i++)
+            result.ys.push_back(i);
+        return result;
+    }
+    Subset clip() {
+        Subset result;
+        for (int i = 0; i < ys.size(); i++) {
+            FOREACH_POINT_IN_ROW(ys[i], pt)
+                result.ys.push_back(i);
+                break;
+            }
         }
-    return result;
+        return result;
+    }
+    int mirror_count() const {
+        int result = 0;
+        for (int i = 0; i < ys.size(); i++) {
+            FOREACH_POINT_IN_ROW(ys[i], pt)
+                result++;
+            }
+        }
+        return result;
+    }
+};
+
+ostream& operator<<(ostream &out, const Subset &s) {
+    set<int> xs;
+    for (int i = 0; i < s.ys.size(); i++) {
+        FOREACH_POINT_IN_ROW(s.ys[i], pt)
+            xs.insert(pt->x());
+        }
+    }
+    out << "  ";
+    for (set<int>::iterator i = xs.begin(); i != xs.end(); ++i)
+        out << setw(2) << *i;
+    out << endl;
+    for (int i = 0; i < s.ys.size(); i++) {
+        out << setw(2) << s.ys[i];
+        for (set<int>::iterator j = xs.begin(); j != xs.end(); ++j) {
+            Point pt = from_coords(*j, s.ys[i]);
+            if (pt->broken)
+                out << "  ";
+            else if (pt->is_right)
+                out << " \\";
+            else
+                out << " /";
+        }
+        out << endl;
+    }
+    return out;
 }
 
 vector<Point> all_enters() {
@@ -281,7 +329,7 @@ vector<Point> greedy_depth_two() {
         }
     }
 
-    float fill = 1.0 * mirror_count() / (n*n);
+    float fill = 1.0 * Subset::full().mirror_count() / (n*n);
 
     for (PtoPs::iterator i = interacts.begin(); i != interacts.end(); ++i) {
         Point e1 = i->first;
@@ -366,8 +414,9 @@ public:
 
         vector<int> solution;
         int step = 0;
-        while (mirror_count() > 0) {
-            cerr << "mirror count = " << mirror_count() << endl;
+        while (Subset::full().mirror_count() > 0) {
+            cerr << "mirror count = " << Subset::full().mirror_count() << endl;
+            //cerr << Subset::full().clip();
             vector<Point> es = greedy_depth_two();
             for (int i = 0; i < es.size(); i++) {
                 Point e = es[i];
@@ -377,7 +426,7 @@ public:
                 solution.push_back(e->x());
                 cerr << e << endl;
             }
-            cerr << "data point: (" << step << ", " << mirror_count() << ")" << endl;
+            cerr << "data point: (" << step << ", " << Subset::full().mirror_count() << ")" << endl;
         }
 
         cerr << "it took " << 1.0 * (clock() - start) / CLOCKS_PER_SEC << endl;
