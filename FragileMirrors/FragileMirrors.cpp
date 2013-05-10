@@ -219,11 +219,11 @@ struct Subset {
             result.ys.push_back(i);
         return result;
     }
-    Subset clip() {
+    Subset clip() const {
         Subset result;
         for (int i = 0; i < ys.size(); i++) {
             FOREACH_POINT_IN_ROW(ys[i], pt)
-                result.ys.push_back(i);
+                result.ys.push_back(ys[i]);
                 break;
             }
         }
@@ -268,6 +268,7 @@ struct Subset {
             component_number++;
             vector<int> tasks;
             tasks.push_back(y0);
+            visited_rows[y0] = component_number;
             while (!tasks.empty()) {
                 int task = tasks.back();
                 tasks.pop_back();
@@ -461,6 +462,32 @@ void do_step(Point enter) {
 
 
 class FragileMirrors {
+    vector<Point> solution;
+
+    void solve_for_subset(Subset subset) {
+        int mc = subset.mirror_count();
+        //cerr << subset;
+        assert(mc > 0);
+        cerr << "mirror count = " << mc << endl;
+
+        vector<Point> es = greedy_depth_two(subset);
+        for (int i = 0; i < es.size(); i++) {
+            Point e = es[i];
+            do_step(es[i]);
+            solution.push_back(e);
+            cerr << e << endl;
+        }
+
+        cerr << "data point: (" << solution.size() << ", " << Subset::full().mirror_count() << ")" << endl;
+
+        subset = subset.clip();
+
+        vector<Subset> components = subset.connected_components();
+        stable_sort(components.begin(), components.end(), Subset::SizeComparer());
+        for (int i = 0; i < components.size(); i++)
+            solve_for_subset(components[i]);
+    }
+
 public:
     vector<int> destroy(vector<string> rows) {
         clock_t start = clock();
@@ -468,36 +495,18 @@ public:
         init_board();
         parse_board(rows);
 
-        vector<int> solution;
-        int step = 0;
-        while (Subset::full().mirror_count() > 0) {
-            Subset subset = Subset::full().clip();
-            cerr << "mirror count = " << subset.mirror_count() << endl;
-            vector<Subset> components = subset.connected_components();
-            stable_sort(components.begin(), components.end(), Subset::SizeComparer());
-            /*cerr << "*********" << endl;
-            cerr << subset;
-            cerr << "has following components:" << endl;
-            for (int i = 0; i < components.size(); i++) {
-                cerr << i << " ---" << endl;
-                cerr << components[i];
-            }
-            cerr << "----" << endl;*/
-            vector<Point> es = greedy_depth_two(components.front());
-            for (int i = 0; i < es.size(); i++) {
-                Point e = es[i];
-                do_step(es[i]);
-                step++;
-                solution.push_back(e->y());
-                solution.push_back(e->x());
-                cerr << e << endl;
-            }
-            cerr << "data point: (" << step << ", " << Subset::full().mirror_count() << ")" << endl;
-        }
+        solution.clear();
 
+        solve_for_subset(Subset::full());
+
+        vector<int> result;
+        for (int i = 0; i < solution.size(); i++) {
+            result.push_back(solution[i]->y());
+            result.push_back(solution[i]->x());
+        }
         cerr << "it took " << 1.0 * (clock() - start) / CLOCKS_PER_SEC << endl;
 
-        return solution;
+        return result;
     }
 };
 
