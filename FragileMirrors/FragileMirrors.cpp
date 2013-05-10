@@ -11,6 +11,8 @@
 #include <algorithm>
 #include <fstream>
 #include <iomanip>
+#include <string>
+#include <sstream>
 
 struct CellInfo;
 typedef CellInfo *Point;
@@ -238,7 +240,7 @@ struct Subset {
         }
         return result;
     }
-    vector<Point> all_enters() const {
+    vector<int> get_xs() const {
         set<int> xs;
         for (int i = 0; i < ys.size(); i++) {
             FOREACH_POINT_IN_ROW(ys[i], pt)
@@ -246,14 +248,18 @@ struct Subset {
             }
             if (xs.size() == n) break;
         }
+        return vector<int>(xs.begin(), xs.end());
+    }
+    vector<Point> all_enters() const {
         vector<Point> result;
         for (int i = 0; i < ys.size(); i++) {
             result.push_back(from_coords(-1, ys[i]));
             result.push_back(from_coords(n, ys[i]));
         }
-        for (set<int>::iterator i = xs.begin(); i != xs.end(); ++i) {
-            result.push_back(from_coords(*i, -1));
-            result.push_back(from_coords(*i, n));
+        vector<int> xs = get_xs();
+        for (int i = 0; i < xs.size(); ++i) {
+            result.push_back(from_coords(xs[i], -1));
+            result.push_back(from_coords(xs[i], n));
         }
         return result;
     }
@@ -302,23 +308,29 @@ struct Subset {
             return s1.mirror_count() < s2.mirror_count();
         }
     };
+
+    string compute_features() const {
+        ostringstream out;
+        out << "dict(";
+        out << "n=" << n << ", ";
+        out << "mc=" << mirror_count() << ", ";
+        out << "rows=" << ys.size() << ", ";
+        out << "cols=" << get_xs().size() << ", ";
+        out << ")";
+        return out.str();
+    }
 };
 
 ostream& operator<<(ostream &out, const Subset &s) {
-    set<int> xs;
-    for (int i = 0; i < s.ys.size(); i++) {
-        FOREACH_POINT_IN_ROW(s.ys[i], pt)
-            xs.insert(pt->x());
-        }
-    }
+    vector<int> xs = s.get_xs();
     out << "  ";
-    for (set<int>::iterator i = xs.begin(); i != xs.end(); ++i)
-        out << setw(2) << *i;
+    for (int i = 0; i < xs.size(); ++i)
+        out << setw(2) << xs[i];
     out << endl;
     for (int i = 0; i < s.ys.size(); i++) {
         out << setw(2) << s.ys[i];
-        for (set<int>::iterator j = xs.begin(); j != xs.end(); ++j) {
-            Point pt = from_coords(*j, s.ys[i]);
+        for (int j = 0; j < xs.size(); ++j) {
+            Point pt = from_coords(xs[j], s.ys[i]);
             if (pt->broken)
                 out << "  ";
             else if (pt->is_right)
@@ -500,6 +512,9 @@ class FragileMirrors {
         assert(mc > 0);
         cerr << "mirror count = " << mc << endl;
 
+        string features = subset.compute_features();
+        int start_steps = solution.size();
+
         vector<Point> es;
         if (mc <= 4) {
             cerr << subset;
@@ -524,6 +539,8 @@ class FragileMirrors {
         stable_sort(components.begin(), components.end(), Subset::SizeComparer());
         for (int i = 0; i < components.size(); i++)
             solve_for_subset(components[i]);
+
+        cerr << "subtask: (" << solution.size() - start_steps << ", " << features << ")" << endl;
     }
 
 public:
