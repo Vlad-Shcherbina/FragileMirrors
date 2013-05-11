@@ -86,16 +86,6 @@ void init_board() {
     }
 }
 
-void random_board() {
-    for (int i = 0; i < n; i++)
-        for (int j = 0; j < n; j++) {
-            Point p = from_coords(j, i);
-            assert(!p->is_outside());
-            p->is_right = rand()&1;
-            p->broken = false;
-        }
-}
-
 void print_board(ostream &out) {
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < n; j++) {
