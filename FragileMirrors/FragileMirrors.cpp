@@ -343,16 +343,30 @@ ostream& operator<<(ostream &out, const Subset &s) {
     return out;
 }
 
+int precise_cost(const Subset &s) {
+    if (s.ys.size() == 1 || s.get_xs().size() == 1)
+        return (s.mirror_count() + 1) / 2;
+    return 0;
+}
+
 float evaluate(const Subset &s) {
+    int t = precise_cost(s);
+    if (t)
+        return t;
+
+    int mc = s.mirror_count();
+    int rows = s.ys.size();
+    int cols = s.get_xs().size();
+
+    return 0.01*mc + 0.5*(rows+cols);
+}
+
+float evaluate_componentwise(const Subset &s) {
     vector<Subset> components = s.connected_components();
     float result = 0;
     for (int i = 0; i < components.size(); i++) {
         Subset &component = components[i];
-        int mc = component.mirror_count();
-        if (mc <= 2)
-            result += 1;
-        else
-            result += (mc+1)/2 - mc%2*0.1;
+        result += evaluate(s);
     }
     return result;
 }
@@ -528,6 +542,7 @@ class FragileMirrors {
         cerr << "mirror count = " << mc << endl;
 
         string features = subset.compute_features();
+        int precise_cost = ::precise_cost(subset);
         int start_steps = solution.size();
 
         vector<Point> es;
@@ -538,7 +553,7 @@ class FragileMirrors {
         }
         else */
         if (mc <= 2*n) {
-            es = greedy(subset, evaluate);
+            es = greedy(subset, evaluate_componentwise);
         }
         else {
             es = greedy_depth_two(subset);
@@ -559,7 +574,12 @@ class FragileMirrors {
         for (int i = 0; i < components.size(); i++)
             solve_for_subset(components[i]);
 
-        cerr << "subtask: (" << solution.size() - start_steps << ", " << features << ")" << endl;
+        if (precise_cost) {
+            assert(solution.size() - start_steps == precise_cost);
+            cerr << "precise: " << features << endl;
+        } else {
+            cerr << "subtask: (" << solution.size() - start_steps << ", " << features << ")" << endl;
+        }
     }
 
 public:
