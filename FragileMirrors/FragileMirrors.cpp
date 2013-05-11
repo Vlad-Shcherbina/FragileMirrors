@@ -306,12 +306,22 @@ struct Subset {
     };
 
     string compute_features() const {
+        vector<int> xs = get_xs();
+        vector<int> row_pops;
+        for (int i = 0; i < ys.size(); i++)
+            row_pops.push_back(row_pop[ys[i]]);
+        vector<int> col_pops;
+        for (int i = 0; i < xs.size(); i++)
+            col_pops.push_back(col_pop[xs[i]]);
+
         ostringstream out;
         out << "dict(";
         out << "n=" << n << ", ";
         out << "mc=" << mirror_count() << ", ";
         out << "rows=" << ys.size() << ", ";
-        out << "cols=" << get_xs().size() << ", ";
+        out << "cols=" << xs.size() << ", ";
+        out << "col_pops=" << col_pops << ", ";
+        out << "row_pops=" << row_pops;
         out << ")";
         return out.str();
     }
