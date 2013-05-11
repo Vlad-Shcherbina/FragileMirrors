@@ -46,6 +46,8 @@ struct CellInfo {
 const int STRIDE = 128;
 
 CellInfo board[STRIDE*STRIDE];
+int col_pop[100];
+int row_pop[100];
 int n;
 
 inline int CellInfo::x() const {
@@ -155,6 +157,7 @@ right:
     do { p = p->right; } while (p->broken);
     if (p->x() >= n) return output_iterator;
     p->broken = true;
+    col_pop[p->x()]--; row_pop[p->y()]--;
     *output_iterator++ = p;
     if (p->is_right) goto down;
     goto up;
@@ -162,6 +165,7 @@ left:
     do { p = p->left; } while (p->broken);
     if (p->x() < 0) return output_iterator;
     p->broken = true;
+    col_pop[p->x()]--; row_pop[p->y()]--;
     *output_iterator++ = p;
     if (p->is_right) goto up;
     goto down;
@@ -169,6 +173,7 @@ down:
     do { p = p->down; } while (p->broken);
     if (p->y() >= n) return output_iterator;
     p->broken = true;
+    col_pop[p->x()]--; row_pop[p->y()]--;
     *output_iterator++ = p;
     if (p->is_right) goto right;
     goto left;
@@ -176,6 +181,7 @@ up:
     do { p = p->up; } while (p->broken);
     if (p->y() < 0) return output_iterator;
     p->broken = true;
+    col_pop[p->x()]--; row_pop[p->y()]--;
     *output_iterator++ = p;
     if (p->is_right) goto left;
     goto right;
@@ -186,6 +192,7 @@ void undo_path(Iterator begin, Iterator end) {
     for (Iterator i = begin; i != end; ++i) {
         assert((*i)->broken);
         (*i)->broken = false;
+        col_pop[(*i)->x()]++; row_pop[(*i)->y()]++;
     }
 }
 
@@ -195,13 +202,15 @@ void undo_path(const vector<Point> &path) {
 
 void parse_board(vector<string> rows) {
     n = rows.size();
-    for (int i = 0; i < n; i++)
+    for (int i = 0; i < n; i++) {
+        col_pop[i] = row_pop[i] = n;
         for (int j = 0; j < n; j++) {
             Point p = from_coords(j, i);
             p->broken = false;
             assert(rows[i][j] == 'L' || rows[i][j] == 'R');
             p->is_right = (rows[i][j] == 'R');
         }
+    }
 }
 
 // Notice unbalanced bracket!
@@ -233,11 +242,8 @@ struct Subset {
     }
     int mirror_count() const {
         int result = 0;
-        for (int i = 0; i < ys.size(); i++) {
-            FOREACH_POINT_IN_ROW(ys[i], pt)
-                result++;
-            }
-        }
+        for (int i = 0; i < ys.size(); i++)
+            result += row_pop[ys[i]];
         return result;
     }
     vector<int> get_xs() const {
