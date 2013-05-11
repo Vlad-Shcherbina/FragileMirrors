@@ -367,11 +367,21 @@ struct SparseEvaluator : Evaluator {
             return t;
 
         int mc = s.mirror_count();
-        return (mc+1)/2-0.1;
-        /*int rows = s.ys.size();
-        int cols = s.get_xs().size();
 
-        return 0.01*mc + 0.5*(rows+cols);*/
+        int num_ones = 0;
+        vector<int> xs = s.get_xs();
+        for (int i = 0; i < xs.size(); i++)
+            if (col_pop[xs[i]] == 1)
+                num_ones++;
+        for (int i = 0; i < s.ys.size(); i++)
+            if (row_pop[s.ys[i]] == 1)
+                num_ones++;
+
+        //[ 0.02805261  0.08137149  0.23205244  0.21428786]
+
+        return 0.02805261 + 0.08137149*mc + 0.23205244*(s.ys.size() + xs.size()) + 0.21428786*num_ones;
+
+        /*return 0.01*mc + 0.5*(rows+cols);*/
     }
 };
 
@@ -567,6 +577,7 @@ class FragileMirrors {
 
         string features = subset.compute_features();
         int precise_cost = ::precise_cost(subset);
+        float sparse_estimate = SparseEvaluator()(subset);
         int start_steps = solution.size();
 
         vector<Point> es;
@@ -603,6 +614,8 @@ class FragileMirrors {
             cerr << "precise: " << features << endl;
         } else {
             cerr << "subtask: (" << solution.size() - start_steps << ", " << features << ")" << endl;
+            if (mc < 50)
+                cerr << "  sparse estimate was " << sparse_estimate << endl;
         }
     }
 
