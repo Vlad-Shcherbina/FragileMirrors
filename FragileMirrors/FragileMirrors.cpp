@@ -349,30 +349,46 @@ int precise_cost(const Subset &s) {
     return 0;
 }
 
-float evaluate(const Subset &s) {
-    int t = precise_cost(s);
-    if (t)
-        return t;
+struct Evaluator {
+    virtual float operator()(const Subset &s) const = 0;
+    virtual ~Evaluator() {}
+};
 
-    int mc = s.mirror_count();
-    int rows = s.ys.size();
-    int cols = s.get_xs().size();
+struct SparseEvaluator : Evaluator {
+    virtual float operator()(const Subset &s) const {
+        int t = precise_cost(s);
+        if (t)
+            return t;
 
-    return 0.01*mc + 0.5*(rows+cols);
-}
+        int mc = s.mirror_count();
+        return (mc+1)/2-0.1;
+        /*int rows = s.ys.size();
+        int cols = s.get_xs().size();
 
-float evaluate_componentwise(const Subset &s) {
-    vector<Subset> components = s.connected_components();
-    float result = 0;
-    for (int i = 0; i < components.size(); i++) {
-        Subset &component = components[i];
-        result += evaluate(s);
+        return 0.01*mc + 0.5*(rows+cols);*/
     }
-    return result;
-}
+};
 
-template<typename Fn>
-vector<Point> greedy(Subset subset, Fn evaluate) {
+struct ComponentwiseEvaluator : Evaluator {
+    const Evaluator &e;
+    ComponentwiseEvaluator(const Evaluator &component_evaluator) : e(component_evaluator) {}
+    virtual float operator()(const Subset &s) const {
+        vector<Subset> components = s.connected_components();
+        float result = 0;
+        for (int i = 0; i < components.size(); i++) {
+            result += e(components[i]);
+        }
+        return result;
+    }
+};
+
+struct NaiveDenseEvaluator : Evaluator {
+    virtual float operator()(const Subset &s) const {
+        return s.mirror_count();
+    }
+};
+
+vector<Point> greedy(Subset subset, const Evaluator &evaluator) {
     vector<Point> enters = subset.all_enters();
 
     float best_cost = 1e10;
@@ -383,7 +399,7 @@ vector<Point> greedy(Subset subset, Fn evaluate) {
         vector<Point> path;
         trace_path(enter, back_inserter(path));
 
-        float cost = 1 + evaluate(subset.clip());
+        float cost = 1 + evaluator(subset.clip());
         if (cost < best_cost) {
             best_cost = cost;
             best_enter = enter;
@@ -395,10 +411,10 @@ vector<Point> greedy(Subset subset, Fn evaluate) {
     return vector<Point>(1, best_enter);
 }
 
-vector<Point> greedy_depth_two(Subset subset) {
+vector<Point> greedy_depth_two(Subset subset, const Evaluator &evaluator) {
     vector<Point> enters = subset.all_enters();
 
-    float best_gain = -1;
+    float best_cost = 1e10;
     vector<Point> best_solution;
 
     typedef hash_map<Point, vector<Point> > PtoPs;
@@ -417,14 +433,15 @@ vector<Point> greedy_depth_two(Subset subset) {
             }
             ps.push_back(enter);
         }
-        undo_path(path);
 
-        float gain = path.size();
-        if (gain > best_gain) {
-            best_gain = gain;
+        float cost = 1 + evaluator(subset);
+        if (cost < best_cost) {
+            best_cost = cost;
             best_solution.clear();
             best_solution.push_back(enter);
         }
+
+        undo_path(path);
     }
 
     float fill = 1.0 * Subset::full().mirror_count() / (n*n);
@@ -440,15 +457,16 @@ vector<Point> greedy_depth_two(Subset subset) {
             Point e2 = es[j];
             vector<Point> path2;
             trace_path(e2, back_inserter(path2));
-            float gain = 0.5 * (path1.size() + path2.size());
-            if (gain > best_gain) {
-                best_gain = gain;
+
+            float cost = 2 + evaluator(subset);
+            if (cost < best_cost) {
+                best_cost = cost;
                 best_solution.clear();
                 best_solution.push_back(e1);
                 best_solution.push_back(e2);
             }
 
-            if (fill > 0.1 && gain < 0.5 * n) {
+            /*if (fill > 0.1 && gain < 0.5 * n) {
                 undo_path(path2);
                 continue;
             }
@@ -475,15 +493,15 @@ vector<Point> greedy_depth_two(Subset subset) {
                     best_solution.push_back(e3);
                 }
                 undo_path(path3, path3_end);
-            }
+            }*/
 
             undo_path(path2);
         }
         undo_path(path1);
     }
 
-    cerr << "best solution: " << best_gain << " " << best_solution << endl;
-    assert(best_gain > 0);
+    cerr << "best solution: " << best_cost << " " << best_solution << endl;
+    assert(best_cost < 1e10);
 
     return best_solution;
 }
@@ -553,10 +571,10 @@ class FragileMirrors {
         }
         else */
         if (mc <= 2*n) {
-            es = greedy(subset, evaluate_componentwise);
+            es = greedy_depth_two(subset, ComponentwiseEvaluator(SparseEvaluator()));
         }
         else {
-            es = greedy_depth_two(subset);
+            es = greedy_depth_two(subset, NaiveDenseEvaluator());
         }
         for (int i = 0; i < es.size(); i++) {
             Point e = es[i];
