@@ -377,11 +377,14 @@ struct SparseEvaluator : Evaluator {
             if (row_pop[s.ys[i]] == 1)
                 num_ones++;
 
-        //[ 0.02805261  0.08137149  0.23205244  0.21428786]
+        // [ 0.02805261  0.08137149  0.23205244  0.21428786]
 
         return 0.02805261 + 0.08137149*mc + 0.23205244*(s.ys.size() + xs.size()) + 0.21428786*num_ones;
 
-        /*return 0.01*mc + 0.5*(rows+cols);*/
+        // [ 0.8984877   0.01042442  0.32902914  0.43482528  0.13334236]
+        //int x = min(s.ys.size(), xs.size());
+        //int y = max(s.ys.size(), xs.size());
+        //return 0.8984877 + 0.01042442*mc + 0.32902914*x + 0.43482528*y + 0.13334236*num_ones;
     }
 };
 
@@ -401,6 +404,28 @@ struct ComponentwiseEvaluator : Evaluator {
 struct NaiveDenseEvaluator : Evaluator {
     virtual float operator()(const Subset &s) const {
         return s.mirror_count();
+    }
+};
+
+struct DenseEvaluator : Evaluator {
+    virtual float operator()(const Subset &s) const {
+        int mc = s.mirror_count();
+
+        //int num_ones = 0;
+        float moment = 0;
+        /*vector<int> xs = s.get_xs();
+        for (int i = 0; i < xs.size(); i++) {
+            if (col_pop[xs[i]] == 1)
+                num_ones++;
+            moment += col_pop[xs[i]]*col_pop[xs[i]];
+        }*/
+        for (int i = 0; i < s.ys.size(); i++) {
+            //if (row_pop[s.ys[i]] == 1)
+            //    num_ones++;
+            moment += 1.0*n/row_pop[s.ys[i]];//*row_pop[s.ys[i]];
+        }
+        // [-1.80422211 -6.21809623  0.93254972  1.42087076 -0.24390053  0.26595177]
+        return mc*(1+0.1*moment/n);
     }
 };
 
@@ -590,8 +615,11 @@ class FragileMirrors {
         if (mc <= 2*n) {
             es = greedy_depth_two(subset, ComponentwiseEvaluator(SparseEvaluator()));
         }
-        else {
+        else if (mc < n*n/20) {
             es = greedy_depth_two(subset, NaiveDenseEvaluator());
+        }
+        else {
+            es = greedy_depth_two(subset, DenseEvaluator());
         }
         for (int i = 0; i < es.size(); i++) {
             Point e = es[i];
