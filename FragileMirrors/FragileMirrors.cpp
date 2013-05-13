@@ -38,6 +38,7 @@ struct CellInfo {
     bool is_right;
     bool broken;
     Point up, down, left, right;
+    float weight;
     int x() const;
     int y() const;
     bool is_outside() const;
@@ -83,6 +84,7 @@ void init_board() {
         p->down = p + STRIDE;
         p->left = p - 1;
         p->right = p + 1;
+        p->weight = 0;
     }
 }
 
@@ -199,6 +201,7 @@ void parse_board(vector<string> rows) {
             p->broken = false;
             assert(rows[i][j] == 'L' || rows[i][j] == 'R');
             p->is_right = (rows[i][j] == 'R');
+            p->weight = 1.0;
         }
     }
 }
@@ -384,6 +387,17 @@ struct NaiveDenseEvaluator : Evaluator {
     }
 };
 
+struct WeightedDenseEvaluator : Evaluator {
+    virtual float operator()(const Subset &s) const {
+        float result = 0;
+        for (int y = 0; y < n; y++)
+            FOREACH_POINT_IN_ROW(y, pt)
+                result += 1000.0/(pt->weight+10);
+            }
+        return result;
+    }
+};
+
 vector<Point> greedy(Subset subset, const Evaluator &evaluator) {
     vector<Point> enters = subset.all_enters();
 
@@ -503,6 +517,43 @@ vector<Point> greedy_depth_two(Subset subset, const Evaluator &evaluator) {
 }
 
 
+void print_weight(ostream &out) {
+    for (int y = 0; y < n; y++) {
+        for (int x = 0; x < n; x++) {
+            Point pt = from_coords(x, y);
+            if (pt->broken)
+                out << "------";
+            else
+                out << pt->weight;
+            out << " ";
+        }
+        out << endl;
+    }
+}
+
+#define zzz(dir) \
+    p = pt->dir; \
+    while (p->broken) p = p->dir; \
+    s += p->weight;
+
+float update_weights() {
+    float error = 0.0;
+    for (int y = 0; y < n; y++)
+        FOREACH_POINT_IN_ROW(y, pt)
+            float s = 0.0;
+            Point p;
+            zzz(up);
+            zzz(down);
+            zzz(left);
+            zzz(right);
+            float new_weight = 0.25*s + 1;
+            error = max(error, abs(new_weight - pt->weight) / new_weight);
+            pt->weight = new_weight;
+        }
+    return error;
+}
+
+
 void do_step(Point enter) {
     vector<Point> path;
     trace_path(enter, back_inserter(path));
@@ -551,6 +602,15 @@ class FragileMirrors {
 
     void solve_for_subset(Subset subset) {
         int mc = subset.mirror_count();
+        for (int i = 0; i < 10*n; i++) {
+            float err = update_weights();
+            if (err < 1e-2) {
+                cerr << i << ":" << err << " ";
+                break;
+            }
+        }
+        cerr << endl;
+        //print_weight(cerr);
         //cerr << subset;
         assert(mc > 0);
         cerr << "mirror count = " << mc << endl;
@@ -566,11 +626,12 @@ class FragileMirrors {
             cerr << "perfect solution: " << es << endl;
         }
         else */
-        if (mc <= 2*n) {
+        if (mc <= n) {
             es = greedy_depth_two(subset, ComponentwiseEvaluator(SparseEvaluator()));
         }
         else {
-            es = greedy_depth_two(subset, NaiveDenseEvaluator());
+            //es = greedy_depth_two(subset, NaiveDenseEvaluator());
+            es = greedy_depth_two(subset, WeightedDenseEvaluator());
         }
         for (int i = 0; i < es.size(); i++) {
             Point e = es[i];
