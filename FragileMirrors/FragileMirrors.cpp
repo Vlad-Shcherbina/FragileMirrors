@@ -13,6 +13,7 @@
 #include <iomanip>
 #include <string>
 #include <sstream>
+#include <cmath>
 
 struct CellInfo;
 typedef CellInfo *Point;
@@ -392,7 +393,7 @@ struct WeightedDenseEvaluator : Evaluator {
         float result = 0;
         for (int y = 0; y < n; y++)
             FOREACH_POINT_IN_ROW(y, pt)
-                result += 1000.0/(pt->weight+10);
+                result += 1000.0/sqrt(pt->weight+5);
             }
         return result;
     }
@@ -424,7 +425,8 @@ vector<Point> greedy(Subset subset, const Evaluator &evaluator) {
 vector<Point> greedy_depth_two(Subset subset, const Evaluator &evaluator) {
     vector<Point> enters = subset.all_enters();
 
-    float best_cost = 1e10;
+    float best_gain = -1e10;
+    float orig_score = evaluator(subset);
     vector<Point> best_solution;
 
     typedef hash_map<Point, vector<Point> > PtoPs;
@@ -444,9 +446,9 @@ vector<Point> greedy_depth_two(Subset subset, const Evaluator &evaluator) {
             ps.push_back(enter);
         }
 
-        float cost = 1 + evaluator(subset);
-        if (cost < best_cost) {
-            best_cost = cost;
+        float gain = orig_score - evaluator(subset);
+        if (gain > best_gain) {
+            best_gain = gain;
             best_solution.clear();
             best_solution.push_back(enter);
         }
@@ -468,9 +470,9 @@ vector<Point> greedy_depth_two(Subset subset, const Evaluator &evaluator) {
             vector<Point> path2;
             trace_path(e2, back_inserter(path2));
 
-            float cost = 2 + evaluator(subset);
-            if (cost < best_cost) {
-                best_cost = cost;
+            float gain = 0.5 * (orig_score - evaluator(subset));
+            if (gain > best_gain) {
+                best_gain = gain;
                 best_solution.clear();
                 best_solution.push_back(e1);
                 best_solution.push_back(e2);
@@ -510,8 +512,8 @@ vector<Point> greedy_depth_two(Subset subset, const Evaluator &evaluator) {
         undo_path(path1);
     }
 
-    cerr << "best solution: " << best_cost << " " << best_solution << endl;
-    assert(best_cost < 1e10);
+    cerr << "best solution: " << best_gain << " " << best_solution << endl;
+    assert(best_gain > 0);
 
     return best_solution;
 }
